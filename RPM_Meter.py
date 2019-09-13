@@ -8,11 +8,8 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QTimer
-import random
-#import RPi.GPIO
 import time
-#from gpiozero import Button
+import _thread
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -46,11 +43,6 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-        self.qTimer = QTimer()
-        # set interval to 1 s
-        self.qTimer.setInterval(1000) # 1000 ms = 1 s
-        # connect timeout signal to signal handler
-        self.qTimer.timeout.connect(self.readRPM)
 
 
     def retranslateUi(self, MainWindow):
@@ -58,41 +50,49 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "RPM Meter"))
         self.rpmValue.setText(_translate("MainWindow", "TextLabel"))
         self.text_line.setText(_translate("MainWindow", "RPM"))
-
-    def initGPIO(self):
-        inPIN = 4
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(3, GPIO.IN)
+    
+    def updateLabel(self):
+        global rpm
+        try:            
+            while(1):
+                self.rpmValue.setText(str(rpm))
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print('Update Thread ended by Keyboard command')
+        except Exception as e:
+            print(str(e))
         
     def readRPM(self):
-        try:        
+        from gpiozero import Button
+        global rpm
+        try:
             ## inicializacion
             deltaT = 0
             enSlots = 20
+            inPIN = 4
             oldT = time.time()        
             pinB = Button(inPIN)
-            
             while(1):
                 Button.wait_for_press(pinB)
                 deltaT = time.time() - oldT
                 oldT = time.time()
                 rpm = 60 / ( deltaT * enSlots )
-                ui.rpmValue.setText(str(rpm))
                 Button.wait_for_release(pinB)
         except KeyboardInterrupt:
-            print('Interrupcion por teclado')
-        finally:
-            GPIO.cleanup
+            print('Read Thread ended by Keyboard command')
+        except Exception as e:
+            print(str(e))
 
                                 
 
 if __name__ == "__main__":
     import sys
+    global rpm
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
+    _thread.start_new_thread(ui.readRPM,())
+    _thread.start_new_thread(ui.updateLabel,())
     MainWindow.show()
-    ui.initGPIO()       #GPIO config
-    ui.qTimer.start()   #starting timer
     sys.exit(app.exec_())
