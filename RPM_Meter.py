@@ -64,6 +64,7 @@ class Ui_MainWindow(object):
         
     def readRPM(self):
         from gpiozero import Button
+        import RPi.GPIO as GPIO
         global rpm
         try:
             ## inicializacion
@@ -82,6 +83,8 @@ class Ui_MainWindow(object):
             print('Read Thread ended by Keyboard command')
         except Exception as e:
             print(str(e))
+        finally:
+            GPIO.cleanup()
 
                                 
 
